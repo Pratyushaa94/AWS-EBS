@@ -1,4 +1,4 @@
-name: Terraform Plan and Apply (with Cost Estimation)
+name: Terraform Plan and Apply (with Cost Estimation & S3 Backend)
 
 on:
   push:
@@ -15,6 +15,7 @@ jobs:
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       AWS_DEFAULT_REGION: us-east-1
+      BUCKET_NAME: terraform-state-pratyushaa-ebs-94
 
     defaults:
       run:
@@ -30,6 +31,32 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
+
+      - name: Create Backend S3 Bucket if not exists
+        run: |
+          if ! aws s3api head-bucket --bucket $BUCKET_NAME 2>/dev/null; then
+            echo "Creating backend S3 bucket..."
+            aws s3api create-bucket \
+              --bucket $BUCKET_NAME \
+              --region $AWS_DEFAULT_REGION \
+              --create-bucket-configuration LocationConstraint=$AWS_DEFAULT_REGION
+            aws s3api put-bucket-versioning \
+              --bucket $BUCKET_NAME \
+              --versioning-configuration Status=Enabled
+            aws s3api put-bucket-encryption \
+              --bucket $BUCKET_NAME \
+              --server-side-encryption-configuration '{
+                "Rules": [
+                  {
+                    "ApplyServerSideEncryptionByDefault": {
+                      "SSEAlgorithm": "AES256"
+                    }
+                  }
+                ]
+              }'
+          else
+            echo "✅ S3 backend bucket already exists."
+          fi
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
