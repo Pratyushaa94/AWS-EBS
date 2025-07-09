@@ -1,22 +1,108 @@
-#  Terraform AWS EC2 with EBS Volume Deployment
 
-This project provisions an AWS EC2 instance and attaches an EBS volume using **Terraform**. It includes secure **S3 backend state management**, **environment-based deployments**, and a **GitHub Actions CI/CD pipeline with manual approval** before apply.
+#  Terraform CI/CD: EC2 + EBS with Cost Estimation & Manual Approval
 
----
+This project automates the creation of:
+- An **EC2 instance**
+- An **EBS volume**
+- Automatic **attachment of EBS to the EC2**
 
-##  What It Does
-
-- Creates an EC2 instance in your specified AWS region and availability zone
-- Provisions a separate EBS volume (default: 8GB, gp3)
-- Attaches the EBS volume to the EC2 instance at `/dev/sdh`
-- Stores Terraform state in a remote **S3 backend** securely
-- Adds cost estimation (manually documented in workflow)
-- Applies only after **manual approval** via GitHub Environment
-- Supports multiple environments (dev, uat, prod)
+All using **Terraform + GitHub Actions**, with a safe and review-based deployment process.
 
 ---
 
-##  File Structure
+##  What It Deploys
+
+-  **EC2 Instance**
+  - Created from Terraform config
+  - Region: `us-east-1`
+-  **EBS Volume**
+  - 8GB general purpose SSD (gp2)
+  - Automatically **attached to EC2**
+-  **S3 Bucket**
+  - Stores Terraform state
+  - Created on first run (if not exists)
+
+---
+
+##  How It Works
+
+- GitHub Action runs on every push to the `main` branch:
+  - `terraform init` and `terraform plan` run automatically
+  - A **cost estimate summary** is shown
+- The pipeline waits for **manual approval**
+- Once approved, it runs `terraform apply` to create the EC2 + EBS
+
+---
+
+##  Steps to Use This Project
+
+###  Clone the Repo
+
+```bash
+git clone https://github.com/<your-username>/<your-repo-name>.git
+cd <your-repo-name>
+```
+
+###  Set Up GitHub Secrets
+
+Go to **Settings → Secrets → Actions** in your repo and add:
+
+| Name                   | Value                          |
+|------------------------|--------------------------------|
+| `AWS_ACCESS_KEY_ID`    | Your AWS access key            |
+| `AWS_SECRET_ACCESS_KEY`| Your AWS secret key            |
+
+> These credentials must have permissions to manage EC2, EBS, and S3.
+
+---
+
+### Add Collaborators
+
+1. Go to your repo → **Settings → Collaborators**
+2. Click **"Invite a collaborator"**
+3. Enter your teammate’s GitHub username
+4. Choose appropriate access (usually **Write** or **Admin**)
+5. Send invite
+
+>  **Note**: If you're the owner, you cannot add yourself — you already have full access.
+
+---
+
+###  Add a GitHub Environment
+
+1. Go to **Settings → Environments**
+2. Click **"New environment"**, name it `dev-approval`
+3. Under **"Deployment protection rules"**, click **"Required reviewers"**
+4. Add your GitHub username (or a teammate)
+5. Click **Save**
+
+This will enforce **manual approval before applying infrastructure**.
+
+---
+
+###  Push Code to Main Branch
+
+```bash
+git add .
+git commit -m "initial commit"
+git push origin main
+```
+
+This will trigger the GitHub Actions workflow.
+
+---
+
+##  How to Approve Apply Step
+
+1. Go to your repo → **Actions**
+2. Click on the latest run
+3. Find the `Terraform Apply (Manual Approval)` job
+4. Click **"Review deployments"**
+5. Hit **"Approve and deploy"**
+
+---
+
+##  Folder Structure
 
 ```
 .
@@ -36,107 +122,77 @@ This project provisions an AWS EC2 instance and attaches an EBS volume using **T
 
 ---
 
-##  Backend Setup (Automated in Workflow)
+##  Behind the Scenes: What Happens
 
-Your Terraform `backend.tf` is:
-```hcl
-terraform {
-  backend "s3" {
-    bucket = "terraform-state-pratyushaa-ebs-94"
-    key    = "ebs/dev/terraform.tfstate"
-    region = "us-east-1"
-  }
-}
+- EC2 is created using `aws_instance`
+- EBS is created using `aws_ebs_volume`
+- EBS is attached using `aws_volume_attachment`
+- S3 bucket stores the remote Terraform state
+- GitHub Actions runs the full flow with cost preview and manual approval
+
+---
+
+##  Estimated Monthly Costs
+
+| Resource     | Amount | Approx Cost        |
+|--------------|--------|--------------------|
+| EC2          | 1      | ~$8/month          |
+| EBS Volume   | 8 GB   | ~$0.64/month       |
+| **Total**    |        | **~$8.64/month**   |
+
+> Note: This is a simple estimation for demonstration only.
+
+---
+
+##  Want to Extend It?
+
+- Add Slack/SNS alerts on apply
+- Create prod and staging environments
+- Use Infracost for real AWS pricing
+- Add monitoring or tagging in Terraform
+
+---
+
+
+---
+
+##  Architecture Diagram
+
+```
+GitHub Repo
+   |
+   |  (push to main)
+   ▼
+GitHub Actions CI/CD
+   |
+   ├── terraform init
+   ├── terraform plan  -->  Estimated cost in GitHub summary
+   ├── waits for approval (via dev-approval environment)
+   └── terraform apply (if approved)
+        |
+        ├── Creates EC2 instance
+        ├── Creates EBS volume
+        └── Attaches EBS to EC2
+
+AWS Infrastructure (after apply):
+   ┌──────────────┐
+   │   EC2        │
+   │  Instance    │
+   └─────┬────────┘
+         │ attached via Terraform
+   ┌─────▼───────┐
+   │    EBS      │
+   │   Volume    │
+   └─────────────┘
 ```
 
- This S3 bucket is created automatically inside the GitHub Actions workflow **if it doesn’t already exist**, using the AWS CLI.
-
 ---
 
-##  GitHub Actions Workflow Features
+##  Cleanup (Optional)
 
-- On **push to `main`**, the pipeline triggers:
-  1. **Creates S3 backend** (if missing)
-  2. Initializes and validates Terraform
-  3. Runs `terraform plan` using `dev.tfvars`
-  4. Uploads plan + manual cost estimate
-- **Manual Approval** gate before `apply` (via GitHub Environments)
-- On approval, it downloads the plan and applies it
+To destroy the resources when done:
 
----
-
-##  GitHub Secrets Required
-
-Go to **Settings > Secrets > Actions** in your GitHub repo and add:
-
-- `AWS_ACCESS_KEY_ID`
-- `AWS_SECRET_ACCESS_KEY`
-- `AWS_REGION` (e.g., us-east-1)
-
-Ensure these have at least:
-- `AmazonEC2FullAccess`
-- `AmazonS3FullAccess`
-
----
-
-##  Environments
-
-| Environment | Purpose                             |
-|-------------|-------------------------------------|
-| `dev`       | Developer testing and validation    |
-| `uat`       | User Acceptance Testing             |
-| `prod`      | Production/live usage               |
-
----
-
-##  Cost Estimation
-
-Cost is estimated manually in the workflow and uploaded as a Markdown file:
-```
-| Resource       | Quantity | Pricing (approx) | Total Cost |
-|----------------|----------|------------------|------------|
-| EC2 Instance   | 1        | $0.0116/hour     | ~$8.50/mo  |
-| EBS Volume     | 8GB      | $0.08/GB-month   | ~$0.64/mo  |
-| Total Estimate: ~$9.14/month
+```bash
+terraform destroy -var-file="environments/dev.tfvars"
 ```
 
----
-
-##  How to Use
-
-1. Clone this repo or copy files to your GitHub repo
-2. Update `environments/dev.tfvars` with your own AMI, instance type, AZ, etc.
-3. Push changes to `main`
-4. Approve the deployment under GitHub → `Environments → dev-approval`
-5. Terraform will apply the infrastructure
-
----
-
-##  Outputs
-
-- EC2 instance ID
-- EBS volume ID
-
-Shown in the GitHub Actions output.
-
----
-
-##  Next Steps
-
-- Add auto-mount user-data script to EC2 instance
-- Add `terraform fmt` and `terraform validate` separately
-- Add security groups, key pairs, CloudWatch, etc.
-- Optionally integrate Infracost or backend locking (DynamoDB)
-
----
-
-##  References
-
-- [AWS EC2 Documentation](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/)
-- [AWS EBS Documentation](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/AmazonEBS.html)
-- [Terraform AWS Provider](https://registry.terraform.io/providers/hashicorp/aws/latest/docs)
-- [GitHub Actions Docs](https://docs.github.com/en/actions)
-
----
-
-> 💬 For questions or improvements, feel free to collaborate or raise a PR!
