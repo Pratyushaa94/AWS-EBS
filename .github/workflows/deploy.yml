@@ -11,11 +11,12 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      AWS_REGION: us-east-1
+      
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_REGION: us-east-1
       AWS_DEFAULT_REGION: us-east-1
-      BUCKET_NAME: terraform-state-pratyushaa-ebs-why
+      BUCKET_NAME: terraform-state-pratyushaa-ebs-
 
     defaults:
       run:
