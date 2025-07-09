@@ -36,13 +36,16 @@ jobs:
         run: |
           if ! aws s3api head-bucket --bucket $BUCKET_NAME 2>/dev/null; then
             echo "Creating backend S3 bucket..."
-            aws s3api create-bucket \
-              --bucket $BUCKET_NAME \
-              --region $AWS_DEFAULT_REGION \
-              --create-bucket-configuration LocationConstraint=$AWS_DEFAULT_REGION
+            CREATE_ARGS="--bucket $BUCKET_NAME --region $AWS_REGION"
+            if [ "$AWS_REGION" != "us-east-1" ]; then
+              CREATE_ARGS="$CREATE_ARGS --create-bucket-configuration LocationConstraint=$AWS_REGION"
+            fi
+            aws s3api create-bucket $CREATE_ARGS
+
             aws s3api put-bucket-versioning \
               --bucket $BUCKET_NAME \
               --versioning-configuration Status=Enabled
+
             aws s3api put-bucket-encryption \
               --bucket $BUCKET_NAME \
               --server-side-encryption-configuration '{
