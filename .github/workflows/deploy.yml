@@ -13,7 +13,7 @@ jobs:
     env:
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      BUCKET_NAME: terraform-state-pratyushaa-ebs-why3
+      BUCKET_NAME: terraform-state-pratyushaa-ebs-why
 
     defaults:
       run:
@@ -76,29 +76,51 @@ jobs:
           name: tfplan
           path: tfplan
 
+      # - name: Setup Infracost
+      #   uses: infracost/actions/setup@v2
+      #   with:
+      #     api-key: ${{ secrets.INFRACOST_API_KEY }}
+
+      # - name: Generate Infracost breakdown
+      #   run: |
+      #     infracost breakdown \
+      #       --path=. \
+      #       --format=table \
+      #       --terraform-plan-flags="-var-file=environments/dev.tfvars" \
+      #       --out-file=infracost-report.txt
+
+      # - name: Upload Infracost Report
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: infracost-report
+      #     path: infracost-report.txt
+
+      # - name:  Show Cost Summary
+      #   run: |
+      #     echo "##  Infracost Estimate Summary" >> $GITHUB_STEP_SUMMARY
+      #     cat infracost-report.txt >> $GITHUB_STEP_SUMMARY
       - name: Setup Infracost
-        uses: infracost/actions/setup@v2
+        uses: infracost/actions/setup@v2.1.0
         with:
           api-key: ${{ secrets.INFRACOST_API_KEY }}
-
-      - name: Generate Infracost breakdown
+ 
+      - name: Run Infracost Breakdown
         run: |
           infracost breakdown \
-            --path=. \
-            --format=table \
-            --terraform-plan-flags="-var-file=environments/dev.tfvars" \
-            --out-file=infracost-report.txt
-
-      - name: Upload Infracost Report
+          --path=plan.json \
+          --format=table \
+          --out-file=infracost-report.txt
+      - name: Upload Infracost Report artifact
         uses: actions/upload-artifact@v4
         with:
           name: infracost-report
-          path: infracost-report.txt
-
-      - name:  Show Cost Summary
+          #path: infracost-report.json
+          path: environments/dev/infracost-report.txt
+ 
+      - name: Show Infracost report saved info
         run: |
-          echo "##  Infracost Estimate Summary" >> $GITHUB_STEP_SUMMARY
-          cat infracost-report.txt >> $GITHUB_STEP_SUMMARY
+          echo "INFO: Infracost cost breakdown report:"
+          cat infracost-report.txt
 
   apply:
     name: Terraform Apply (Manual Approval)
