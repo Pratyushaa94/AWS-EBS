@@ -13,7 +13,7 @@ jobs:
     env:
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      BUCKET_NAME: terraform-state-pratyushaa-ebs-why2
+      BUCKET_NAME: terraform-state-pratyushaa-ebs-why3
 
     defaults:
       run:
@@ -56,7 +56,7 @@ jobs:
                 ]
               }'
           else
-            echo "✅ S3 backend bucket already exists."
+            echo " S3 backend bucket already exists."
           fi
 
       - name: Setup Terraform
@@ -76,18 +76,29 @@ jobs:
           name: tfplan
           path: tfplan
 
-      - name: 💰 Show Cost Summary
+      - name: Setup Infracost
+        uses: infracost/actions/setup@v2
+        with:
+          api-key: ${{ secrets.INFRACOST_API_KEY }}
+
+      - name: Generate Infracost breakdown
         run: |
-          {
-            echo "## 💰 Estimated Monthly Costs (Dev Environment)"
-            echo ""
-            echo "| Resource       | Quantity | Pricing (approx) | Total Cost |"
-            echo "|----------------|----------|------------------|------------|"
-            echo "| EC2 Instance   | 1        | \$0.0116/hour     | ~\$8/month |"
-            echo "| EBS Volume     | 8 GB     | \$0.08 / GB       | ~\$0.64    |"
-            echo ""
-            echo "**Total Estimate:** ~\$8.64/month"
-          } >> $GITHUB_STEP_SUMMARY
+          infracost breakdown \
+            --path=. \
+            --format=table \
+            --terraform-plan-flags="-var-file=environments/dev.tfvars" \
+            --out-file=infracost-report.txt
+
+      - name: Upload Infracost Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: infracost-report
+          path: infracost-report.txt
+
+      - name:  Show Cost Summary
+        run: |
+          echo "##  Infracost Estimate Summary" >> $GITHUB_STEP_SUMMARY
+          cat infracost-report.txt >> $GITHUB_STEP_SUMMARY
 
   apply:
     name: Terraform Apply (Manual Approval)
