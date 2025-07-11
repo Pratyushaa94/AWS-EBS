@@ -110,12 +110,13 @@ jobs:
           --path=plan.json \
           --format=table \
           --out-file=infracost-report.txt
+          
       - name: Upload Infracost Report artifact
         uses: actions/upload-artifact@v4
         with:
           name: infracost-report
           #path: infracost-report.json
-          path: environments/dev/infracost-report.txt
+          path: infracost-report.txt
  
       - name: Show Infracost report saved info
         run: |
