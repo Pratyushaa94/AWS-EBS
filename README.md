@@ -51,6 +51,8 @@ Go to **Settings → Secrets → Actions** in your repo and add:
 |------------------------|--------------------------------|
 | `AWS_ACCESS_KEY_ID`    | Your AWS access key            |
 | `AWS_SECRET_ACCESS_KEY`| Your AWS secret key            |
+| `INFRACOST_API_KEY`    | Your Infracost API key         |
+
 
 > These credentials must have permissions to manage EC2, EBS, and S3.
 
